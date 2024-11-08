@@ -1,0 +1,63 @@
+pipeline {
+    agent any
+    environment {
+        SONAR_LOGIN = 'admin'
+        SONAR_PASSWORD = '54144850Hosni,'
+        SONAR_HOST_URL = 'http://192.167.33.10:9090'
+    }
+    stages {
+        stage('Git Checkout') {
+            steps {
+                echo 'Getting project from Git...'
+                git branch: 'mohamedabdelhak_5sea7_g4', 
+                    url: 'https://github.com/Rabyous1/5SAE7-G4-TPSki.git'
+            }
+        }
+        
+        stage('Compile') {
+            steps {
+                echo 'Compilation du projet...'
+                sh 'mvn clean compile'
+            }
+        }
+        
+        stage('Run Tests') {
+            steps {
+                echo 'Running tests...'
+                sh 'mvn test'
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            when {
+                expression { currentBuild.result == null || currentBuild.result == 'SUCCESS' }
+            }
+            steps {
+                echo 'SonarQube Analysis...'
+                sh "mvn sonar:sonar -Dsonar.host.url=${SONAR_HOST_URL} -Dsonar.login=${SONAR_LOGIN} -Dsonar.password=${SONAR_PASSWORD}"
+            }
+        }
+        
+        stage('nexus') {
+            steps {
+                sh 'mvn deploy -Dmaven.test.skip=true'
+            }
+        }
+
+        stage('Build and Deploy with Docker') {
+            steps {
+                echo 'Building and deploying with Docker Compose...'
+                sh 'docker-compose down' // Arrête les conteneurs si nécessaire
+                sh 'docker-compose up --build -d' // Construit et lance les conteneurs en arrière-plan
+            }
+        }
+    }
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed.'
+        }
+    }
+}
